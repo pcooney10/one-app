@@ -104,6 +104,15 @@ function renderI18nScript(clientInitialState, appBundlesURLPrefix) {
   return `<script async src="${appBundlesURLPrefix}/${i18nFile}" crossorigin="anonymous"></script>`;
 }
 
+function renderI18nPreloadLink(clientInitialState, appBundlesURLPrefix) {
+  const i18nFile = getI18nFileFromState(clientInitialState);
+  if (!i18nFile) {
+    return '';
+  }
+
+  return `<link rel="preload" href="${appBundlesURLPrefix}/${i18nFile}" as="script" crossorigin="anonymous"></script>`;
+}
+
 export function renderModuleScripts({
   clientInitialState, moduleMap, isDevelopmentEnv, bundle,
 }) {
@@ -124,6 +133,29 @@ export function renderModuleScripts({
     const additionalAttributes = isDevelopmentEnv ? '' : `integrity="${integrity}"`;
     const scriptSource = isDevelopmentEnv || !clientCacheRevision ? src : `${src}?clientCacheRevision=${clientCacheRevision}`;
     return `<script async src="${scriptSource}" crossorigin="anonymous" ${additionalAttributes}></script>`;
+  }).join(isDevelopmentEnv ? '\n          ' : '');
+}
+
+export function renderModulePreloadLinks({
+  clientInitialState, moduleMap, isDevelopmentEnv, bundle,
+}) {
+  const clientConfig = getClientStateConfig();
+  const { rootModuleName } = clientConfig;
+  // Sorting to ensure that the rootModule is the first script to load,
+  // this is required to correctly provide external dependencies.
+  const orderedLoadedModules = clientInitialState.getIn(['holocron', 'loaded'], iSet())
+    .sort((currentModule, nextModule) => {
+      if (currentModule === rootModuleName) { return -1; }
+      if (nextModule === rootModuleName) { return 1; }
+      return 0;
+    });
+
+  return orderedLoadedModules.map((moduleName) => {
+    const { integrity, url: src } = moduleMap.modules[moduleName][bundle];
+    const { clientCacheRevision } = moduleMap;
+    const additionalAttributes = isDevelopmentEnv ? '' : `integrity="${integrity}"`;
+    const scriptSource = isDevelopmentEnv || !clientCacheRevision ? src : `${src}?clientCacheRevision=${clientCacheRevision}`;
+    return `<link rel="preload" href="${scriptSource}" as="script" crossorigin="anonymous" ${additionalAttributes}>`;
   }).join(isDevelopmentEnv ? '\n          ' : '');
 }
 
@@ -195,6 +227,7 @@ export function getHead({
   store,
   disableStyles,
   webManifestUrl,
+  preloadLinks,
 }) {
   return `
     <head>
@@ -203,6 +236,7 @@ export function getHead({
       ${renderModuleStyles(store)}
       `}
       ${webManifestUrl ? `<link rel="manifest" href="${webManifestUrl}">` : ''}
+      ${preloadLinks}
     </head>
   `;
 }
@@ -275,6 +309,28 @@ export function renderPartial({
   return styles + html;
 }
 
+
+function buildPreloadLinks({
+  isLegacy, appBundlesURLPrefix, chunkAssets, clientInitialState, clientModuleMapCache,
+}) {
+  const bundlePrefixForBrowser = isLegacy ? `${appBundlesURLPrefix}/legacy` : appBundlesURLPrefix;
+  const bundle = isLegacy ? 'legacyBrowser' : 'browser';
+  const assets = chunkAssets
+    .map((chunkAsset) => `<link rel="preload" href="${appBundlesURLPrefix}/${chunkAsset}" as="script" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous">`)
+    .join('\n          ');
+  return `
+  <link rel="preload" href="${bundlePrefixForBrowser}/app.js" as="script" integrity="${integrityManifest[isLegacy ? 'legacy/app.js' : 'app.js']}" crossorigin="anonymous">
+  ${assets}
+  ${renderModulePreloadLinks({
+    clientInitialState,
+    moduleMap: clientModuleMapCache[bundle],
+    isDevelopmentEnv: nodeEnvIsDevelopment,
+    bundle,
+  })}
+  ${renderI18nPreloadLink(clientInitialState, appBundlesURLPrefix)}
+  `;
+}
+
 // TODO add additional client side scripts
 export default function sendHtml(req, res) {
   let body;
@@ -312,6 +368,10 @@ export default function sendHtml(req, res) {
       .map((chunkAsset) => `<script async src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous"></script>`)
       .join('\n          ');
 
+    const preloadLinks = buildPreloadLinks({
+      isLegacy, appBundlesURLPrefix, chunkAssets, clientInitialState, clientModuleMapCache,
+    });
+
     const headSectionArgs = {
       helmetInfo,
       store,
@@ -319,6 +379,7 @@ export default function sendHtml(req, res) {
       disableStyles,
       scriptNonce,
       webManifestUrl,
+      preloadLinks,
     };
 
     const bodySectionArgs = {
