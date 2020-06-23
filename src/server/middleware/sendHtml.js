@@ -101,7 +101,7 @@ function renderI18nScript(clientInitialState, appBundlesURLPrefix) {
     return '';
   }
 
-  return `<script src="${appBundlesURLPrefix}/${i18nFile}" crossorigin="anonymous"></script>`;
+  return `<script async src="${appBundlesURLPrefix}/${i18nFile}" crossorigin="anonymous"></script>`;
 }
 
 export function renderModuleScripts({
@@ -123,7 +123,7 @@ export function renderModuleScripts({
     const { clientCacheRevision } = moduleMap;
     const additionalAttributes = isDevelopmentEnv ? '' : `integrity="${integrity}"`;
     const scriptSource = isDevelopmentEnv || !clientCacheRevision ? src : `${src}?clientCacheRevision=${clientCacheRevision}`;
-    return `<script src="${scriptSource}" crossorigin="anonymous" ${additionalAttributes}></script>`;
+    return `<script async src="${scriptSource}" crossorigin="anonymous" ${additionalAttributes}></script>`;
   }).join(isDevelopmentEnv ? '\n          ' : '');
 }
 
@@ -241,7 +241,7 @@ export function getBody({
     isDevelopmentEnv: nodeEnvIsDevelopment,
     bundle,
   })}
-      <script src="${bundlePrefixForBrowser}/app.js" integrity="${integrityManifest[isLegacy ? 'legacy/app.js' : 'app.js']}" crossorigin="anonymous"></script>
+      <script async src="${bundlePrefixForBrowser}/app.js" integrity="${integrityManifest[isLegacy ? 'legacy/app.js' : 'app.js']}" crossorigin="anonymous"></script>
       ${(script && script.toString()) || ''}
       `}
     </body>
@@ -309,7 +309,7 @@ export default function sendHtml(req, res) {
     const chunkAssets = isLegacy ? legacyBrowserChunkAssets : modernBrowserChunkAssets;
 
     const assets = chunkAssets
-      .map((chunkAsset) => `<script src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous"></script>`)
+      .map((chunkAsset) => `<script async src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous"></script>`)
       .join('\n          ');
 
     const headSectionArgs = {
