@@ -365,7 +365,7 @@ export default function sendHtml(req, res) {
     const chunkAssets = isLegacy ? legacyBrowserChunkAssets : modernBrowserChunkAssets;
 
     const assets = chunkAssets
-      .map((chunkAsset) => `<script async src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous"></script>`)
+      .map((chunkAsset) => `<script data-preload="true" async src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous"></script>`)
       .join('\n          ');
 
     const preloadLinks = buildPreloadLinks({
