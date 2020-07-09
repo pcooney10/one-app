@@ -26,17 +26,5 @@ import './badPartMonkeypatches';
 
 import initClient from './initClient';
 
-const scripts = document.querySelectorAll('[data-preload=true]');
-
-let loaded = 0;
-const total = scripts.length;
-
-function handleScriptLoad() {
-  loaded += 1;
-}
-
-scripts.forEach((script) => script.addEventListener('load', handleScriptLoad));
-
-if (total === loaded) {
-  initClient();
-}
+document
+  .querySelector('[data-preload=true]').addEventListener('load', () => initClient());

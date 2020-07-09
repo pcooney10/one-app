@@ -316,6 +316,7 @@ function buildPreloadLinks({
   const bundlePrefixForBrowser = isLegacy ? `${appBundlesURLPrefix}/legacy` : appBundlesURLPrefix;
   const bundle = isLegacy ? 'legacyBrowser' : 'browser';
   const assets = chunkAssets
+    .filter((chunkAsset) => !chunkAsset.match('runtime'))
     .map((chunkAsset) => `<link rel="preload" href="${appBundlesURLPrefix}/${chunkAsset}" as="script" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous">`)
     .join('\n          ');
   return `
@@ -365,7 +366,15 @@ export default function sendHtml(req, res) {
     const chunkAssets = isLegacy ? legacyBrowserChunkAssets : modernBrowserChunkAssets;
 
     const assets = chunkAssets
-      .map((chunkAsset) => `<script data-preload="true" async src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${integrityManifest[chunkAsset]}" crossorigin="anonymous"></script>`)
+      .map(
+        (chunkAsset) => `<script ${
+          chunkAsset === 'app~vendors.js' ? "data-preload='true'" : ''
+        } ${
+          chunkAsset !== 'runtime.js' ? 'async' : ''
+        } src="${appBundlesURLPrefix}/${chunkAsset}" integrity="${
+          integrityManifest[chunkAsset]
+        }" crossorigin="anonymous"></script>`
+      )
       .join('\n          ');
 
     const preloadLinks = buildPreloadLinks({
